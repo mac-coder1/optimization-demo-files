@@ -5,9 +5,17 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
-def compile_tours(n_vehicles, routing, manager, solution):
+def compile_tours(
+    n_vehicles, routing, manager, solution, allow_arbitrary_end_locations
+):
     """
     Extracts each vehicle's route from the solution and returns a list of tours.
+
+    Args:
+        allow_arbitrary_end_locations:
+            If True, the end location of the vehicle can be any node. To mimic this in the code the final
+            node is made 0 distance from all others. So must be removed from the plot!
+
     """
     tours = []
     for vehicle_id in range(n_vehicles):
@@ -19,6 +27,9 @@ def compile_tours(n_vehicles, routing, manager, solution):
             index = solution.Value(routing.NextVar(index))
             tours[-1].append(node_index)
         else:
+            if allow_arbitrary_end_locations:
+                continue
+
             node_index = manager.IndexToNode(index)
             tours[-1].append(node_index)
 
