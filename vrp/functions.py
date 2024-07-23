@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 
 
 def compile_tours(
-    n_vehicles, routing, manager, solution, allow_arbitrary_end_locations, time_callback
+    n_vehicles, routing, manager, solution, allow_arbitrary_end_locations
 ):
     """
     Extracts each vehicle's route from the solution and returns a list of tours.
@@ -19,20 +19,16 @@ def compile_tours(
 
     """
     tours = []
-    travel_time = []
 
     for vehicle_id in range(n_vehicles):
         index = routing.Start(vehicle_id)
         tours.append([])
-        travel_time.append([])
 
         while not routing.IsEnd(index):
             node_index = manager.IndexToNode(index)
             previous_index = index
             index = solution.Value(routing.NextVar(index))
             tours[-1].append(node_index)
-
-            travel_time[-1].append(time_callback(previous_index, index))
 
         else:
             if allow_arbitrary_end_locations:
@@ -41,11 +37,7 @@ def compile_tours(
             node_index = manager.IndexToNode(index)
             tours[-1].append(node_index)
 
-    if allow_arbitrary_end_locations:
-        # Remove the final node from all tours
-        travel_time = [travel_[:-1] for travel_ in travel_time]
-
-    return tours, travel_time
+    return tours
 
 
 def plot_tours(tours, coordinates):
