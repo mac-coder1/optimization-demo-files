@@ -65,6 +65,12 @@ def plot_tours(tours, coordinates):
         x = coordinates.values[t, 0]
         y = coordinates.values[t, 1]
 
+        # print("r",r)
+        # print("tour",tour)
+        # print("t",t)
+        # print("x",x)
+        # print("y",y)
+
         # Add scatter plot
         fig.add_trace(
             go.Scatter(x=x, y=y, mode="markers", marker=dict(color=c), name=f"R{r}")
