@@ -40,7 +40,7 @@ def compile_tours(
     return tours
 
 
-def plot_tours(tours, coordinates):
+def plot_tours(tours, coordinates, dropped_nodes):
     """
     Plots the graph of tours for each vehicle
     """
@@ -57,12 +57,6 @@ def plot_tours(tours, coordinates):
         x = coordinates.values[t, 0]
         y = coordinates.values[t, 1]
 
-        # print("r",r)
-        # print("tour",tour)
-        # print("t",t)
-        # print("x",x)
-        # print("y",y)
-
         # Add scatter plot
         fig.add_trace(
             go.Scatter(x=x, y=y, mode="markers", marker=dict(color=c), name=f"R{r}")
@@ -72,6 +66,21 @@ def plot_tours(tours, coordinates):
         fig.add_trace(
             go.Scatter(x=x, y=y, mode="lines", line=dict(color=c), showlegend=False)
         )
+
+    t_dropped = np.array(dropped_nodes)
+    x_dropped = coordinates.values[t_dropped, 0]
+    y_dropped = coordinates.values[t_dropped, 1]
+
+    # Add scatter plot for dropped nodes
+    fig.add_trace(
+        go.Scatter(
+            x=x_dropped,
+            y=y_dropped,
+            mode="markers",
+            marker=dict(color="black"),
+            name="Dropped Apps",
+        )
+    )
 
     # Update layout to include legend and other layout adjustments
     fig.update_layout(
@@ -175,19 +184,41 @@ def print_solution(
 
 
 def print_appointments(
-    dataset, time_dimension, manager, solution, start_locations, time_window_dict
+    dataset,
+    time_dimension,
+    manager,
+    solution,
+    start_locations,
+    time_window_dict,
+    routing,
 ):
     """
     Desc: Prints the outputs of the VRP on a per appointment basis.
     """
+    # find dropped nodes
+    dropped_nodes = []
+    for index in range(routing.Size()):
+        if routing.IsStart(index) or routing.IsEnd(index):
+            continue
+        if solution.Value(routing.NextVar(index)) == index:
+            dropped_nodes.append(manager.IndexToNode(index))
+
     print("Appointments:")
     print("Key: |Node| (timeslot): Att: Arrival Time")
     print(f"AM {time_window_dict['AM']} min, PM {time_window_dict['PM']} min\n")
+
     for location_indx in dataset.index:
         if location_indx == 0:
             continue
         elif location_indx in start_locations:
             continue
+
         timeslot = dataset.loc[location_indx, "timeslot"]
         time_var = time_dimension.CumulVar(manager.NodeToIndex(location_indx))
-        print(f"|{location_indx}| ({timeslot}): Att {solution.Value(time_var)}")
+
+        if location_indx in dropped_nodes:
+            print(f"|{location_indx}| ({timeslot}): Not Attended")
+        else:
+            print(f"|{location_indx}| ({timeslot}): Att {solution.Value(time_var)}")
+
+    return dropped_nodes
