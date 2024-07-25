@@ -90,3 +90,104 @@ def plot_tours(tours, coordinates):
     )
 
     return fig
+
+
+def print_solution(
+    routing,
+    n_vehicles,
+    start_times,
+    end_times,
+    time_dimension,
+    solution,
+    manager,
+    time_matrix,
+    service_time_dict,
+    dataset,
+):
+    """
+    Description: Prints the solution of the VRP problem on an engineer by engineer basis.
+    """
+
+    cumulative_job_drive_time = 0
+    cumulative_drive_time = 0
+    cumulative_job_time = 0
+
+    av_util = 0
+
+    print_val = "Key: |Node| A:Arrival, JT:Job Time, T:Travel Time, J:Job Time, F:Finish Time, WT: Work Time\n\n"
+    for vehicle_id in range(n_vehicles):
+        print_val += f"Vehicle {vehicle_id}: Available {start_times[vehicle_id]}min -> {end_times[vehicle_id]}min\n"
+
+        index = routing.Start(vehicle_id)
+        previous_index = None
+
+        total_job_drive_time = 0
+        total_drive_time = 0
+        total_job_time = 0
+
+        while not routing.IsEnd(index):
+
+            previous_index = index
+            previous_node = manager.IndexToNode(index)
+
+            index = solution.Value(routing.NextVar(index))
+            node = manager.IndexToNode(index)
+
+            # arrival_time = solution.Min(time_dimension.CumulVar(previous_node))
+            arrival_time = solution.Min(time_dimension.CumulVar(previous_index))
+
+            job_drive_time = routing.GetArcCostForVehicle(
+                previous_index, index, vehicle_id
+            )
+
+            total_job_drive_time += job_drive_time
+
+            drive_time = time_matrix[previous_node][node]
+
+            total_drive_time += drive_time
+
+            job_time = service_time_dict[dataset.loc[previous_node, "job_type"]]
+
+            total_job_time += job_time
+
+            print_val += f"|{previous_node}| A:{arrival_time}, TS: {dataset.loc[previous_node, 'timeslot']}, JT:{job_drive_time}, T:{drive_time}, J:{job_time} -> "
+
+        index = routing.End(vehicle_id)
+        print_val += f"F:{solution.Value(time_dimension.CumulVar(index))} min\n"
+
+        print_val += f"Totals: J:{total_job_time},    T:{total_drive_time}, JT:{total_job_drive_time}, F:{solution.Value(time_dimension.CumulVar(index))} min\n"
+        WT_total = (end_times[vehicle_id] - start_times[vehicle_id]) / 100
+        av_util += (total_job_time) / WT_total
+        print_val += f"Percentages: J:{int(total_job_time/WT_total)}%,    T:{int(total_drive_time/WT_total)}%, JT:{int(total_job_drive_time/WT_total)}%, F:%{int(solution.Value(time_dimension.CumulVar(index))/WT_total)}%\n\n"
+
+        cumulative_job_drive_time += total_job_drive_time
+        cumulative_drive_time += total_drive_time
+        cumulative_job_time += total_job_time
+
+    print_val += f"Totals: J:{cumulative_job_time} T:{cumulative_drive_time}, JT:{cumulative_job_drive_time}\n"
+    print_val += f"Average Utilisation: {round(av_util/n_vehicles,2)}%\n"
+
+    print(print_val)
+
+    print(f"Objective function value: {solution.ObjectiveValue()} min")
+
+    print(f"Ob function directly minimises JT, not finish time")
+
+
+def print_appointments(
+    dataset, time_dimension, manager, solution, start_locations, time_window_dict
+):
+    """
+    Desc: Prints the outputs of the VRP on a per appointment basis.
+    """
+    print("Appointments:")
+    print("Key: |Node| (timeslot): Att: Arrival Time")
+    print(f"AM {time_window_dict['AM']} min, PM {time_window_dict['PM']} min\n")
+    for location_indx in dataset.index:
+        if location_indx == 0:
+            continue
+        elif location_indx in start_locations:
+            continue
+        timeslot = dataset.loc[location_indx, "timeslot"]
+        time_var = time_dimension.CumulVar(manager.NodeToIndex(location_indx))
+        print(f"|{location_indx}| ({timeslot}): Att {solution.Value(time_var)}")
